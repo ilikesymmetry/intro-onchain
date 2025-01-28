@@ -5,43 +5,47 @@ import { baseSepolia } from 'viem/chains';
 import { AttendanceAbi, attendenceContract } from '@/app/lib/Attendance';
 
 export async function GET(req: Request) {
+  const PAGE_SIZE = 50
   try {
-    console.log({req})
     const { searchParams } = new URL(req.url);
-    console.log({searchParams})
-    
-    const sessionId = searchParams.get('sessionId');
-    console.log({sessionId})
-
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
-    }
+    const startId = parseInt(searchParams.get('startId') ?? "0");
 
     const publicClient = createPublicClient({
       chain: baseSepolia,
       transport: http()
     })
-    const data = await publicClient.readContract({
+
+    const totalSessionsRes = await publicClient.readContract({
       address: attendenceContract,
       abi: AttendanceAbi,
-      functionName: 'sessions',
-      args: [BigInt(sessionId)]
+      functionName: 'totalSessions',
+      args: []
     })
+    const totalSessions = parseInt(totalSessionsRes.toString())
 
-    console.error({data})
+    if (startId > totalSessions - 1) throw Error("startId exceeds max possible id")
 
-    const session = {
-      start: parseInt(data[0].toString()),
-      end: parseInt(data[1].toString()),
-      totalAttended: parseInt(data[2].toString()),
-      isCanceled: data[3],
-      creator: data[4],
-    }
+    const endId = totalSessions - startId > PAGE_SIZE ? startId + PAGE_SIZE : totalSessions - 1
+    const sessionIds = Array.from({ length: endId - startId + 1 }, (_, i) => startId + i);
+    console.log({sessionIds})
+    const sessionsRes = await publicClient.multicall({
+      contracts: sessionIds.map(sessionId => ({
+        abi: AttendanceAbi, 
+        address: attendenceContract, 
+        functionName: "sessions", 
+        args: [sessionId]
+      }))
+    })
+    const sessions = sessionsRes.map(({result}, i) => ({
+      sessionId: sessionIds[i],
+      start: (result as unknown as [number, number, bigint])[0], 
+      end: (result as unknown as [number, number, bigint])[1], 
+      totalAttended: parseInt((result as unknown as [number, number, bigint])[2].toString())
+    }))
 
-    return NextResponse.json(session, { status: 200 });
-  } catch (error: any) {
-    console.log(error.message)
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    return NextResponse.json({totalSessions: parseInt(totalSessions.toString()), sessions}, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid request', message: (error as Error).message }, { status: 400 });
   }
 }
 
@@ -62,14 +66,10 @@ export async function POST(req: Request) {
         transport: http()
       })
 
-    // preparing the transaction object
-    // - setting gas prices
-    // signs the transaction object with the "account"
-    // sends the signed transaction to a node to include in the next block
     const transactionHash = await walletClient.sendTransaction({to: attendenceContract, data: encodeFunctionData({abi: AttendanceAbi, functionName: "createSession", args: [start, end]})})
 
     return NextResponse.json({ transactionHash }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request', message: (error as Error).message }, { status: 400 });
   }
 }

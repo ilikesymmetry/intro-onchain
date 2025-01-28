@@ -15,13 +15,31 @@ import {
   EthBalance,
 } from '@coinbase/onchainkit/identity';
 import { Transaction, TransactionButton, TransactionSponsor, TransactionStatus, TransactionStatusAction, TransactionStatusLabel } from "@coinbase/onchainkit/transaction"
-import { encodeFunctionData } from 'viem';
+import { encodeFunctionData, Hex } from 'viem';
 import { AttendanceAbi, attendenceContract } from '@/app/lib/Attendance';
-import { useAccount } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
 
 export default function App({ params }: {params: {sessionId: string}}) {
     const account = useAccount()
-    const calls = [{to: attendenceContract, data: encodeFunctionData({abi: AttendanceAbi, functionName: "attendSession", args: [BigInt(params.sessionId)]})}]
+    const {data: totalSessions} = useReadContract({
+        abi: AttendanceAbi, 
+        address: attendenceContract, 
+        functionName: "totalSessions"
+    })
+    const {data: hasAttended} = useReadContract({
+        abi: AttendanceAbi, 
+        address: attendenceContract, 
+        functionName: "hasAttended", 
+        args: [BigInt(params.sessionId), account.address as Hex]
+    })
+    const calls = [{
+        to: attendenceContract, 
+        data: encodeFunctionData({
+            abi: AttendanceAbi, 
+            functionName: "attendSession", 
+            args: [BigInt(params.sessionId)]
+        })
+    }]
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen font-sans dark:bg-background dark:text-white bg-white text-black">
@@ -60,6 +78,9 @@ export default function App({ params }: {params: {sessionId: string}}) {
                         </Wallet>
                     </div>
                     <div className='w-1/4'>
+                    {parseInt(params.sessionId) >= (totalSessions ?? 0) ? (
+                        <div className='text-center'>Session does not exist.</div>
+                    ) : !hasAttended ? (
                         <Transaction calls={calls}>
                             <TransactionButton text={"Attend"} />
                             <TransactionSponsor />
@@ -68,6 +89,9 @@ export default function App({ params }: {params: {sessionId: string}}) {
                                 <TransactionStatusAction />
                             </TransactionStatus>
                         </Transaction>  
+                    ) : (
+                        <div className='text-center'>You have already attended this session.</div>
+                    )}
                     </div>
                 </>
             )}
