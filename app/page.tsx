@@ -16,12 +16,12 @@ async function fetchSessions() {
 
 export default function App() {
   const account = useAccount()
-  const { data, error, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["sessions"],
     queryFn: fetchSessions,
   });
 
-  return (
+  return isLoading ? (<></>) : (
     <div className="flex flex-col items-center justify-center min-h-screen font-sans dark:bg-background dark:text-white bg-white text-black">
       {account?.address && (
         <div className='absolute top-4 right-4'>

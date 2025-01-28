@@ -18,14 +18,21 @@ import { Transaction, TransactionButton, TransactionSponsor, TransactionStatus, 
 import { encodeFunctionData, Hex } from 'viem';
 import { AttendanceAbi, attendenceContract } from '@/app/lib/Attendance';
 import { useAccount, useChainId, useReadContract, useSwitchChain } from 'wagmi';
-import { base, baseSepolia } from 'viem/chains';
+import { baseSepolia } from 'viem/chains';
+import { parseSession } from '@/app/sessions/route';
 
 export default function App({ params }: {params: {sessionId: string}}) {
     const account = useAccount()
-    const {data: totalSessions} = useReadContract({
+    const {data: totalSessions, isLoading} = useReadContract({
         abi: AttendanceAbi, 
         address: attendenceContract, 
         functionName: "totalSessions"
+    })
+    const {data: sessionRaw} = useReadContract({
+        abi: AttendanceAbi,
+        address: attendenceContract,
+        functionName: "sessions",
+        args: [BigInt(params.sessionId)]
     })
     const {data: hasAttended} = useReadContract({
         abi: AttendanceAbi, 
@@ -33,7 +40,7 @@ export default function App({ params }: {params: {sessionId: string}}) {
         functionName: "hasAttended", 
         args: [BigInt(params.sessionId), account.address as Hex]
     })
-    const calls = [{
+    const attendSessionCalls = [{
         to: attendenceContract, 
         data: encodeFunctionData({
             abi: AttendanceAbi, 
@@ -48,8 +55,19 @@ export default function App({ params }: {params: {sessionId: string}}) {
         switchChain({chainId: baseSepolia.id})
     }
 
-    return (
+    const session = parseSession(sessionRaw)
+    console.log({session})
+
+    return isLoading ? (
+        <></>
+    ) : parseInt(params.sessionId) >= (totalSessions ?? 0) ? (
+        <div className='flex flex-col text-center justify-center min-h-screen'>Session does not exist.</div>
+    ) : (
         <div className="flex flex-col items-center justify-center min-h-screen font-sans dark:bg-background dark:text-white bg-white text-black">
+            <div className='flex flex-col space-y-4 mb-12'>
+                <div className='text-2xl'>Session #{params.sessionId}</div>
+                <div className='text-2xl'>Total attended: {session?.totalAttended}</div>
+            </div>
             {!account.address ? (
                 <Wallet>
                     <ConnectWallet>
@@ -85,10 +103,8 @@ export default function App({ params }: {params: {sessionId: string}}) {
                         </Wallet>
                     </div>
                     <div className='w-1/4'>
-                    {parseInt(params.sessionId) >= (totalSessions ?? 0) ? (
-                        <div className='text-center'>Session does not exist.</div>
-                    ) : !hasAttended ? (
-                        <Transaction calls={calls}>
+                    {!hasAttended ? (
+                        <Transaction calls={attendSessionCalls}>
                             <TransactionButton text={"Attend"} />
                             <TransactionSponsor />
                             <TransactionStatus>

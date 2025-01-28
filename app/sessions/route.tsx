@@ -4,6 +4,15 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { baseSepolia } from 'viem/chains';
 import { AttendanceAbi, attendenceContract } from '@/app/lib/Attendance';
 
+export function parseSession(result?: [number, number, bigint] | readonly [number, number, bigint]) {
+  if (!result) return undefined
+  return {
+    start: result[0], 
+    end: result[1], 
+    totalAttended: parseInt(result[2].toString())
+  }
+}
+
 export async function GET(req: Request) {
   const PAGE_SIZE = 50
   try {
@@ -38,9 +47,7 @@ export async function GET(req: Request) {
     })
     const sessions = sessionsRes.map(({result}, i) => ({
       sessionId: sessionIds[i],
-      start: (result as unknown as [number, number, bigint])[0], 
-      end: (result as unknown as [number, number, bigint])[1], 
-      totalAttended: parseInt((result as unknown as [number, number, bigint])[2].toString())
+      ...parseSession(result as unknown as [number, number, bigint])
     }))
 
     return NextResponse.json({totalSessions: parseInt(totalSessions.toString()), sessions}, { status: 200 });
