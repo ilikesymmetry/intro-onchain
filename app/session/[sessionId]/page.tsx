@@ -17,7 +17,8 @@ import {
 import { Transaction, TransactionButton, TransactionSponsor, TransactionStatus, TransactionStatusAction, TransactionStatusLabel } from "@coinbase/onchainkit/transaction"
 import { encodeFunctionData, Hex } from 'viem';
 import { AttendanceAbi, attendenceContract } from '@/app/lib/Attendance';
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount, useChainId, useReadContract, useSwitchChain } from 'wagmi';
+import { base, baseSepolia } from 'viem/chains';
 
 export default function App({ params }: {params: {sessionId: string}}) {
     const account = useAccount()
@@ -40,6 +41,12 @@ export default function App({ params }: {params: {sessionId: string}}) {
             args: [BigInt(params.sessionId)]
         })
     }]
+
+    const chainId = useChainId()
+    const {switchChain} = useSwitchChain()
+    if (chainId && chainId != baseSepolia.id) {
+        switchChain({chainId: baseSepolia.id})
+    }
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen font-sans dark:bg-background dark:text-white bg-white text-black">

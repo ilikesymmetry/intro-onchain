@@ -50,11 +50,15 @@ export default function App() {
           </Wallet>
       </div>
       )}
-      <ul className="w-1/4 text-center flex flex-col space-y-4">
-        {data?.sessions?.map(session => (
-          <Link href={`/session/${session.sessionId}`} className="hover:underline">Session #{session.sessionId}</Link>
-        ))}
-      </ul>
+      {!data?.sessions?.length ? (
+        <div className="text-center">No sessions created. <br /> Call POST /sessions or transact directly onchain. </div>
+      ) : (
+        <ul className="w-1/4 text-center flex flex-col space-y-4">
+          {data?.sessions?.map((session: any) => (
+            <Link href={`/session/${session.sessionId}`} className="hover:underline">Session #{session.sessionId}</Link>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
