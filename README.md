@@ -1,4 +1,4 @@
-# Intro to Onchain
+# Introduction to Onchain Web Apps
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with `npm create onchain`.
 
