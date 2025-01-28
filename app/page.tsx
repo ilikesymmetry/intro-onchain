@@ -1,61 +1,60 @@
 'use client';
 
-import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownLink,
-  WalletDropdownDisconnect,
-} from '@coinbase/onchainkit/wallet';
-import {
-  Address,
-  Avatar,
-  Name,
-  Identity,
-  EthBalance,
-} from '@coinbase/onchainkit/identity';
-import { TransactionDefault } from "@coinbase/onchainkit/transaction"
-import { AttendanceAbi, attendenceContract } from './lib/Attendance';
-import { encodeFunctionData } from 'viem';
+import { Address, Avatar, EthBalance, Identity, Name } from "@coinbase/onchainkit/identity";
+import { ConnectWallet, Wallet, WalletDropdown, WalletDropdownDisconnect, WalletDropdownLink } from "@coinbase/onchainkit/wallet";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useAccount } from "wagmi";
+
+async function fetchSessions() {
+  const response = await fetch("/sessions");
+  if (!response.ok) {
+    throw new Error("Failed to fetch sessions");
+  }
+  return response.json();
+}
 
 export default function App() {
-  const calls = [{to: attendenceContract, data: encodeFunctionData({abi: AttendanceAbi, functionName: "attendSession", args: [BigInt(3)]})}]
+  const account = useAccount()
+  const { data, error, isLoading } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: fetchSessions,
+  });
 
   return (
-    <div className="flex flex-col min-h-screen font-sans dark:bg-background dark:text-white bg-white text-black">
-      <header className="pt-4 pr-4">
-        <div className="flex justify-end">
-          <div className="wallet-container">
-            <Wallet>
+    <div className="flex flex-col items-center justify-center min-h-screen font-sans dark:bg-background dark:text-white bg-white text-black">
+      {account?.address && (
+        <div className='absolute top-4 right-4'>
+          <Wallet>
               <ConnectWallet>
-                <Avatar className="h-6 w-6" />
-                <Name />
+                  <Avatar className="h-6 w-6" />
+                  <Name />
               </ConnectWallet>
               <WalletDropdown>
-                <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-                  <Avatar />
-                  <Name />
-                  <Address />
-                  <EthBalance />
-                </Identity>
-                <WalletDropdownLink
-                  icon="wallet"
-                  href="https://keys.coinbase.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Wallet
-                </WalletDropdownLink>
-                <WalletDropdownDisconnect />
+                  <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                      <Avatar />
+                      <Name />
+                      <Address />
+                      <EthBalance />
+                  </Identity>
+                  <WalletDropdownLink
+                      icon="wallet"
+                      href="https://keys.coinbase.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >
+                      Wallet
+                  </WalletDropdownLink>
+                  <WalletDropdownDisconnect />
               </WalletDropdown>
-            </Wallet>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-col justify-center items-center mt-8">
-        <TransactionDefault calls={calls}/>
+          </Wallet>
       </div>
+      )}
+      <ul className="w-1/4 text-center flex flex-col space-y-4">
+        {data?.sessions?.map(session => (
+          <Link href={`/session/${session.sessionId}`} className="hover:underline">Session #{session.sessionId}</Link>
+        ))}
+      </ul>
     </div>
   );
 }
